@@ -51,7 +51,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 |---|---|---|
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
 | Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
-| Phase 2 | Impulse 설계·학습 | `docs/02-model.md` |
+| Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) |
 | Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
@@ -90,9 +90,10 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | `wave` | 107.8 | 57.5 | 변화량 idle의 **31배** |
 | `swipe` | 124.6 | 53.8 | 변화량 idle의 **29배** |
 
-세 제스처 모두 분리 가능합니다. 다만 **`wave`와 `swipe`는 진폭 특성이 거의 같아
-(차이 2~7%) 주파수 성분만이 유일한 분리 근거**입니다 — Phase 2에서 Spectral Analysis가
-선택이 아니라 필수인 이유입니다.
+세 제스처 모두 분리 가능합니다. 다만 **`wave`와 `swipe`가 갈리는지**가 이 프로젝트의
+핵심 질문이고, Phase 0~1에서 세 번 추정해 세 번 다 다른 답이 나왔습니다.
+60초 세션 실측 기준으로 주파수 약 2배(1.2 vs 0.6 Hz), 진폭 범위는 겹칩니다.
+Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.md) 참고.
 
 ---
 
