@@ -41,9 +41,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 
 | 핀 | 부품 | 이 프로젝트에서 |
 |---|---|---|
-| GP20 | 버튼 SW1 (풀업, 눌림 = 0) | 페이스 메트로놈 간격 전환 |
-| GP21 | NeoPixel WS2812B ×1 | 상태 표시 (밝기 24 이하 — 조도 오염 방지) |
-| GP22 | 부저 MLT-7525 (PWM) | 페이스 메트로놈 비프 |
+| GP21 | NeoPixel WS2812B ×1 | 동작 표시 (밝기 3 — 조도 영향 없음) |
 
 ---
 
@@ -106,7 +104,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | `src/lib/bh1750_probe.py` | 공용 샘플링·통계 루틴 (Phase 1에서도 재사용) |
 | `src/characterize.py` | Phase 0 — 변환 시간·잡음 실측 (손동작 불필요) |
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
-| `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 + 페이스 메트로놈 |
+| `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
 
 ---
