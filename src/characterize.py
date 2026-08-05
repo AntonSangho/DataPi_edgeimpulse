@@ -18,7 +18,7 @@
 """
 
 from machine import I2C, Pin
-from utime import sleep, sleep_ms, ticks_diff, ticks_ms
+from utime import sleep, sleep_ms, ticks_diff, ticks_ms, ticks_us
 
 from bh1750 import BH1750
 
@@ -77,7 +77,7 @@ def measure_conversion_time(sensor, resolution, measurement_time, trials=8):
         sensor._i2c.writeto(sensor._address, mode_cmd)
         start = ticks_us()
         while read_raw(sensor) == 0:
-            if ticks_diff(ticks_us(), start) > 2_000_000:
+            if ticks_diff(ticks_us(), start) > 2000000:
                 break
         times.append(ticks_diff(ticks_us(), start) / 1000.0)
         sleep_ms(50)
