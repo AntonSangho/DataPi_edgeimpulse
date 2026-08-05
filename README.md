@@ -51,7 +51,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 |---|---|---|
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
 | Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
-| Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) |
+| Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) — 1차 학습 완료 |
 | Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
@@ -94,6 +94,29 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 핵심 질문이고, Phase 0~1에서 세 번 추정해 세 번 다 다른 답이 나왔습니다.
 60초 세션 실측 기준으로 주파수 약 2배(1.2 vs 0.6 Hz), 진폭 범위는 겹칩니다.
 Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.md) 참고.
+
+---
+
+## 진행 현황 (2026-08-05)
+
+**1차 학습 완료 — 검증 94.7% / 테스트 64.9%**
+
+| 클래스 | 검증 F1 | 테스트 F1 |
+|---|---|---|
+| `cover` | 0.91 | 0.92 |
+| `idle` | 0.90 | 0.87 |
+| `swipe` | 0.97 | 0.57 |
+| `wave` | 0.98 | **0.07** |
+
+같은 조명에서는 네 클래스가 모두 갈리지만, **다른 조명·다른 손 거리에서
+`wave`가 붕괴**합니다 (87.7%가 `swipe`로). 학습 세션이 하나뿐이라
+모델이 그 60초의 진폭 패턴을 외운 탓입니다.
+
+온디바이스 성능은 **3 ms / 1.4 KB RAM / 14.7 KB Flash** — RP2040 예산의 1~3%.
+병목은 모델 크기가 아니라 **일반화**입니다.
+
+다음: 조명·손 거리를 바꾼 학습 세션 추가 수집 → 재학습.
+상세는 [`docs/02-model.md`](docs/02-model.md).
 
 ---
 
