@@ -41,9 +41,9 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 
 | 핀 | 부품 | 이 프로젝트에서 |
 |---|---|---|
-| GP20 | 버튼 SW1 (풀업, 눌림 = 0) | 녹화 시작/정지 |
-| GP21 | NeoPixel WS2812B ×1 | 녹화·추론 상태 표시 |
-| GP22 | 부저 MLT-7525 (PWM) | 녹화 시작/끝 비프 |
+| GP20 | 버튼 SW1 (풀업, 눌림 = 0) | 페이스 메트로놈 간격 전환 |
+| GP21 | NeoPixel WS2812B ×1 | 상태 표시 (밝기 24 이하 — 조도 오염 방지) |
+| GP22 | 부저 MLT-7525 (PWM) | 페이스 메트로놈 비프 |
 
 ---
 
@@ -52,7 +52,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | 단계 | 내용 | 문서 |
 |---|---|---|
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
-| Phase 1 | data-forwarder로 데이터 수집 | `docs/01-data-collection.md` |
+| Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
 | Phase 2 | Impulse 설계·학습 | `docs/02-model.md` |
 | Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
@@ -106,7 +106,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | `src/lib/bh1750_probe.py` | 공용 샘플링·통계 루틴 (Phase 1에서도 재사용) |
 | `src/characterize.py` | Phase 0 — 변환 시간·잡음 실측 (손동작 불필요) |
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
-| `src/ei_forwarder.py` | Phase 1 — 16.6 Hz CSV 시리얼 출력 (data-forwarder용) |
+| `src/ei_forwarder.py` | Phase 1 — 16.6 Hz lux 스트리머 + 페이스 메트로놈 |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
 
 ---
