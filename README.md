@@ -83,6 +83,19 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | 창 길이 | **2000 ms (33 샘플)** | 3초 지연은 제스처에 너무 느림 |
 | stride | 500 ms | |
 
+### 제스처 분리도 (배경 129.8 lx)
+
+| 클래스 | mean | 최대 샘플간 변화 | 판정 근거 |
+|---|---:|---:|---|
+| `idle` | 129.8 | 1.9 | 기준 (1.9 lx = 1 LSB, 잡음 바닥) |
+| `cover` | 5.7 | 1.9 | 레벨차 **96%** |
+| `wave` | 107.8 | 57.5 | 변화량 idle의 **31배** |
+| `swipe` | 124.6 | 53.8 | 변화량 idle의 **29배** |
+
+세 제스처 모두 분리 가능합니다. 다만 **`wave`와 `swipe`는 진폭 특성이 거의 같아
+(차이 2~7%) 주파수 성분만이 유일한 분리 근거**입니다 — Phase 2에서 Spectral Analysis가
+선택이 아니라 필수인 이유입니다.
+
 ---
 
 ## 파일
@@ -90,7 +103,9 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | 경로 | 설명 |
 |---|---|
 | `src/lib/bh1750.py` | BH1750 드라이버 (vendored, 버그 2건 수정) |
-| `src/characterize.py` | Phase 0 — 변환 시간·잡음·동적 범위 실측 |
+| `src/lib/bh1750_probe.py` | 공용 샘플링·통계 루틴 (Phase 1에서도 재사용) |
+| `src/characterize.py` | Phase 0 — 변환 시간·잡음 실측 (손동작 불필요) |
+| `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
 | `src/ei_forwarder.py` | Phase 1 — 16.6 Hz CSV 시리얼 출력 (data-forwarder용) |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
 
@@ -104,12 +119,14 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 # MicroPython 펌웨어는 Datapi_Bringup 저장소의 UF2 사용 (v1.28.0)
 mpremote fs mkdir :lib
 mpremote fs cp src/lib/bh1750.py :lib/
+mpremote fs cp src/lib/bh1750_probe.py :lib/
 ```
 
 ### Phase 0 — 센서 특성 측정
 
 ```bash
-mpremote run src/characterize.py
+mpremote run src/characterize.py    # 변환 시간·잡음 (조도 고정, 약 40초)
+mpremote run src/gesture_range.py   # 제스처별 동적 범위 (손동작 필요)
 ```
 
 ### Phase 1 — 데이터 수집
