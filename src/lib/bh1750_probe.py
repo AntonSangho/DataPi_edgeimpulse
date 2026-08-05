@@ -36,10 +36,16 @@ SAMPLE_PERIOD_MS = SAMPLE_PERIOD_US / 1000.0
 SAMPLE_HZ = 1000000.0 / SAMPLE_PERIOD_US
 
 
-def make_sensor():
+def make_sensor(quiet=False):
+    """quiet=True는 아무것도 출력하지 않는다.
+
+    ei_forwarder.py는 stdout이 곧 데이터 스트림이다. 스캔 결과를 찍으면
+    data-forwarder가 그 줄을 샘플로 읽어 데이터가 오염된다.
+    """
     i2c = I2C(0, sda=Pin(I2C_SDA), scl=Pin(I2C_SCL))
     found = i2c.scan()
-    print("I2C 스캔:", [hex(a) for a in found])
+    if not quiet:
+        print("I2C 스캔:", [hex(a) for a in found])
     if BH1750_ADDR not in found:
         raise RuntimeError("BH1750(0x23)을 찾지 못했습니다. GP4=SDA / GP5=SCL 배선을 확인하세요.")
     return BH1750(BH1750_ADDR, i2c)

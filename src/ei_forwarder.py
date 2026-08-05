@@ -27,10 +27,10 @@ data-forwarder는 단방향이다. 장치는 계속 스트리밍하고, 어느 �
 --- 페이스 메트로놈을 넣었다가 뺀 이유 ---
 
 wave와 swipe가 빈도로만 갈릴까 봐 부저로 박자를 잡아주는 기능을 넣었었다.
-1차 수집 실측 결과 불필요했다.
+60초 세션 실측 결과 불필요했다.
 
-  자연스럽게 한 wave ~1.9 Hz  vs  swipe ~0.5 Hz  →  3.5~4배 차이
-  게다가 골 깊이도 다르다 (wave 30~70 lux, swipe 5~20 lux)
+  자연스럽게 한 wave ~1.2 Hz  vs  swipe ~0.6 Hz  →  약 2배
+  골 깊이는 더 확실히 갈린다 (wave 40~90 lux, swipe 10~30 lux)
 
 오히려 해로울 수 있다. 0.8초 박자에 맞춰 찍은 데이터로 학습하면 모델이 그 경직된
 박자를 배우는데, 실사용에서 사람은 메트로놈 없이 제스처를 한다. 학습 데이터가
@@ -54,10 +54,14 @@ from bh1750_probe import SAMPLE_PERIOD_US, make_sensor, use_best_config
 
 NEOPIXEL_PIN = 21
 COLOR_RUNNING = (0, 0, 3)   # 아주 흐린 파랑 — 조도에 영향 없는 밝기
+COLOR_RECOVER = (3, 0, 0)   # 흐린 빨강 — 센서 재초기화 중
+
+# 연속 실패가 이만큼 쌓이면 I2C와 센서를 통째로 다시 만든다
+REINIT_AFTER_FAILURES = 5
 
 
 def main():
-    sensor = make_sensor()
+    sensor = make_sensor(quiet=True)
     use_best_config(sensor)
 
     pixels = NeoPixel(Pin(NEOPIXEL_PIN), 1)
@@ -67,10 +71,38 @@ def main():
     # 포워더가 붙기 전에 안내를 흘려보내면 첫 줄이 깨질 수 있다. 잠깐 기다린다.
     sleep_ms(1500)
 
+    last_value = 0.0
+    failures = 0
     next_sample = ticks_us()
+
     while True:
+        # --- 센서 읽기 ---
+        #
+        # 예외가 루프를 빠져나가면 main()이 끝나고 REPL로 떨어져 출력이 완전히 멎는다.
+        # 그러면 Studio는 60초를 요청했는데 25초만 받고도 "OK"로 업로드해 버린다.
+        # 1차 수집에서 실제로 겪었다 (wave 401/960 샘플, 이어서 swipe 0샘플 2회).
+        #
+        # 스트림은 무슨 일이 있어도 끊기지 않아야 한다. 읽기에 실패하면 직전 값을
+        # 내보내 주기를 유지하고, 연속 실패가 쌓이면 센서를 다시 만든다.
+        try:
+            last_value = sensor.measurement
+            failures = 0
+        except Exception:
+            failures += 1
+            if failures >= REINIT_AFTER_FAILURES:
+                pixels[0] = COLOR_RECOVER
+                pixels.write()
+                try:
+                    sensor = make_sensor(quiet=True)
+                    use_best_config(sensor)
+                    failures = 0
+                    pixels[0] = COLOR_RUNNING
+                    pixels.write()
+                except Exception:
+                    pass    # 다음 주기에 다시 시도한다
+
         # data-forwarder가 읽는 유일한 줄
-        print("{:.2f}".format(sensor.measurement))
+        print("{:.2f}".format(last_value))
 
         next_sample += SAMPLE_PERIOD_US
         delay = ticks_diff(next_sample, ticks_us())
@@ -81,4 +113,9 @@ def main():
             next_sample = ticks_us()
 
 
-main()
+# main()이 어떤 이유로든 빠져나오면 스트림이 멎는다. 그러면 다시 시작한다.
+while True:
+    try:
+        main()
+    except Exception:
+        sleep_ms(500)
