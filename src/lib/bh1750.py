@@ -1,12 +1,18 @@
 # https://github.com/flrrth/pico-bh1750
 #
 # DataPi_edgeimpulse용 vendored 사본.
-# 원본 대비 수정 사항:
-#   - _write_measurement_mode() / measurements()에서 해상도 판별을
-#     self._measurement_time이 아니라 self._resolution으로 비교하도록 수정.
-#     원본은 measurement_time(31~254) 값을 RESOLUTION_LOW(2) 상수와 비교하고 있어
-#     저해상도 모드에서도 항상 120~180 ms를 대기했다. 제스처 인식에 필요한
-#     20~40 Hz를 얻으려면 이 판별이 올바라야 한다.
+# 원본 대비 수정 사항 (2건, 상세는 docs/00-sensor-characterization.md):
+#
+#   1. 해상도 판별 오류 — _write_measurement_mode() / measurements()가
+#      self._measurement_time(31~254)을 RESOLUTION_LOW(2) 상수와 비교하고 있었다.
+#      항상 거짓이므로 저해상도 모드에서도 120~180 ms를 대기했다.
+#      → self._resolution과 비교하도록 수정.
+#
+#   2. MTreg lux 환산 방향이 반대 — (69 / mt)로 나누고 있었다.
+#      MTreg를 줄이면 감도가 낮아져 같은 밝기에서 raw가 작아지므로 (mt / 69)여야 한다.
+#      mt=69(기본값)에서는 두 식이 일치해 기본 설정으로만 쓰면 드러나지 않는다.
+#      → 실측으로 확인: 배경 130 lx에서 mt=31 raw=70,
+#        원본 식 26.3 lx / 수정 식 129.9 lx (mt=69 측정치 130.0 lx와 일치).
 
 import math
 
@@ -100,7 +106,11 @@ class BH1750:
 
         buffer = bytearray(2)
         self._i2c.readfrom_into(self._address, buffer)
-        lux = (buffer[0] << 8 | buffer[1]) / (1.2 * (BH1750.MEASUREMENT_TIME_DEFAULT / self._measurement_time))
+        # FIX: 원본은 (69 / mt)로 나눴다. MTreg를 줄이면 감도가 낮아져 같은 밝기에서
+        # raw 카운트가 작아지므로 (mt / 69)로 나눠야 한다. mt=69에서는 두 식이 같아
+        # 기본 설정으로만 쓰면 드러나지 않는다.
+        # 실측(배경 130 lx): mt=31 raw=70 → 70/1.2*(69/31) = 129.9 lx  (원본 식은 26.3 lx)
+        lux = (buffer[0] << 8 | buffer[1]) / (1.2 * (self._measurement_time / BH1750.MEASUREMENT_TIME_DEFAULT))
 
         if self._resolution == BH1750.RESOLUTION_HIGH_2:
             return lux / 2

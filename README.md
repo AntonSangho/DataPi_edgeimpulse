@@ -72,6 +72,19 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 
 ---
 
+## 확정 파라미터 (Phase 0 실측 결과)
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| 해상도 | H-Resolution | 저해상도는 미완결 값 반환 (아래 이슈 참고) |
+| MTreg | 31 | 데이터시트 최솟값 = 최고 속도 |
+| 변환 시간 | 52.6 ms (상한 19.0 Hz) | 실측 |
+| 샘플 주기 | **60 ms (16.6 Hz)** | 변환 시간에 14% 여유 |
+| 창 길이 | **2000 ms (33 샘플)** | 3초 지연은 제스처에 너무 느림 |
+| stride | 500 ms | |
+
+---
+
 ## 파일
 
 | 경로 | 설명 |
@@ -104,22 +117,29 @@ mpremote run src/characterize.py
 ```bash
 mpremote cp src/ei_forwarder.py :main.py
 mpremote reset
-edge-impulse-data-forwarder --frequency 25
+edge-impulse-data-forwarder --frequency 16
 ```
 
 ---
 
 ## 알려진 이슈
 
-### BH1750 드라이버의 해상도 판별 버그
+### BH1750 드라이버 버그 2건 (수정됨)
 
-원본 [`pico-bh1750`](https://github.com/flrrth/pico-bh1750)은 `_write_measurement_mode()`와
-`measurements()`에서 해상도를 판별할 때 `self._measurement_time`(31~254)을
-`RESOLUTION_LOW`(2) 상수와 비교합니다. 항상 거짓이 되므로 저해상도 모드에서도
-120~180 ms를 대기하고, 결과적으로 ~8 Hz에 묶입니다.
+원본 [`pico-bh1750`](https://github.com/flrrth/pico-bh1750)에서 발견해 `src/lib/bh1750.py`에서 수정했습니다.
 
-제스처 인식에는 25 Hz 이상이 필요하므로 `src/lib/bh1750.py`에서 `self._resolution`을
-비교하도록 수정했습니다. 상세는 파일 상단 주석 참고.
+1. **해상도 판별 오류** — `self._measurement_time`(31~254)을 `RESOLUTION_LOW`(2) 상수와 비교.
+   항상 거짓이라 저해상도 모드에서도 180 ms를 대기합니다.
+2. **MTreg lux 환산 방향이 반대** — `(69 / mt)`로 나누고 있으나 `(mt / 69)`여야 합니다.
+   `mt = 69`(기본값)에서만 우연히 일치해서 드러나지 않습니다.
+   실측: 배경 128 lx에서 원본 식은 `mt=31`일 때 **26.3 lx**를 반환합니다.
+
+상세와 검증 데이터는 [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) 3절 참고.
+
+### 저해상도 모드는 사용 불가
+
+L-Resolution 모드는 변환이 끝나기 전의 미완결 값을 반환합니다. 조도가 고정된 상태에서도
+raw가 `0~128`을 오가며, 지터가 고해상도의 500배입니다. 자세한 측정치는 위 문서 1절 참고.
 
 ### DataPi v0.3 배터리 전압 분배 회로
 

@@ -29,13 +29,22 @@ BH1750_ADDR = 0x23
 # 시험할 설정: (이름, 해상도, measurement_time)
 # 연속 모드 변환 시간 ~= base * (mt / 69),  base = 저해상도 16 ms / 고해상도 120 ms
 CONFIGS = (
+    ("HIGH mt=31", BH1750.RESOLUTION_HIGH, 31),
+    ("HIGH mt=45", BH1750.RESOLUTION_HIGH, 45),
+    ("HIGH mt=69", BH1750.RESOLUTION_HIGH, 69),
+    ("HIGH2 mt=31", BH1750.RESOLUTION_HIGH_2, 31),
     ("LOW  mt=31", BH1750.RESOLUTION_LOW, 31),
     ("LOW  mt=69", BH1750.RESOLUTION_LOW, 69),
-    ("HIGH mt=31", BH1750.RESOLUTION_HIGH, 31),
-    ("HIGH mt=69", BH1750.RESOLUTION_HIGH, 69),
 )
 
-SAMPLE_COUNT = 200  # 설정당 측정 샘플 수
+# Phase 0 실측으로 확정된 설정 (docs/00-sensor-characterization.md 참고)
+#   HIGH mt=31 → 변환 52.6 ms → 최대 19.0 Hz.  여유를 두고 60 ms 주기로 샘플링한다.
+BEST_RESOLUTION = BH1750.RESOLUTION_HIGH
+BEST_MT = 31
+SAMPLE_HZ = 16.6
+SAMPLE_PERIOD_MS = 60
+
+SAMPLE_COUNT = 300  # 설정당 잡음 측정 샘플 수
 
 
 def make_sensor():
@@ -47,51 +56,82 @@ def make_sensor():
     return BH1750(BH1750_ADDR, i2c)
 
 
-def measure_rate(sensor, resolution, measurement_time, n=SAMPLE_COUNT):
-    """대기 없이 최대한 빨리 읽었을 때의 읽기 속도와 값 갱신 속도를 잰다.
+def read_raw(sensor):
+    buffer = bytearray(2)
+    sensor._i2c.readfrom_into(sensor._address, buffer)
+    return buffer[0] << 8 | buffer[1]
 
-    반환: (읽기 Hz, 값이 바뀐 횟수, 최소 lux, 최대 lux)
+
+def measure_conversion_time(sensor, resolution, measurement_time, trials=8):
+    """변환 시간 = 레지스터를 0으로 지우고 측정을 재시작한 뒤 새 값이 채워질 때까지의 시간.
+
+    주의: reset()만으로는 연속 측정이 재개되지 않는다. 모드 명령을 다시 써야 한다.
     """
     sensor.configure(BH1750.MEASUREMENT_MODE_CONTINUOUSLY, resolution, measurement_time)
+    sleep_ms(300)
+
+    mode_cmd = bytes([resolution | (BH1750.MEASUREMENT_MODE_CONTINUOUSLY << 4)])
+    times = []
+    for _ in range(trials):
+        sensor.reset()
+        sensor._i2c.writeto(sensor._address, mode_cmd)
+        start = ticks_us()
+        while read_raw(sensor) == 0:
+            if ticks_diff(ticks_us(), start) > 2_000_000:
+                break
+        times.append(ticks_diff(ticks_us(), start) / 1000.0)
+        sleep_ms(50)
+
+    times.sort()
+    return times[len(times) // 2]
+
+
+def measure_noise(sensor, resolution, measurement_time, n=SAMPLE_COUNT):
+    """조도가 고정된 상태에서 raw 레지스터가 얼마나 흔들리는지 잰다.
+
+    반환: (raw 최소, raw 최대, 인접 샘플 변화량의 평균 = 지터)
+    """
+    sensor.configure(BH1750.MEASUREMENT_MODE_CONTINUOUSLY, resolution, measurement_time)
+    sleep_ms(300)
 
     values = []
-    start = ticks_ms()
     for _ in range(n):
-        values.append(sensor.measurement)
-    elapsed_ms = ticks_diff(ticks_ms(), start)
+        values.append(read_raw(sensor))
+        sleep_ms(2)
 
-    read_hz = n * 1000.0 / elapsed_ms if elapsed_ms else 0.0
-    changes = sum(1 for i in range(1, n) if values[i] != values[i - 1])
-    update_hz = changes * 1000.0 / elapsed_ms if elapsed_ms else 0.0
-    return read_hz, update_hz, min(values), max(values)
+    jitter = sum(abs(values[i] - values[i - 1]) for i in range(1, n)) / (n - 1)
+    return min(values), max(values), jitter
 
 
 def part1_sample_rate(sensor):
     print()
-    print("=" * 62)
-    print("1. 설정별 샘플레이트")
-    print("=" * 62)
-    print("{:<12} {:>10} {:>10} {:>12} {:>12}".format(
-        "설정", "읽기Hz", "갱신Hz", "min lux", "max lux"))
-    print("-" * 62)
+    print("=" * 76)
+    print("1. 설정별 변환 시간과 잡음 (조도가 고정된 상태에서 측정할 것)")
+    print("=" * 76)
+    print("{:<12} {:>10} {:>8} {:>8} {:>12} {:>10}".format(
+        "설정", "변환ms", "최대Hz", "이론ms", "raw 범위", "지터cnt"))
+    print("-" * 76)
 
     results = []
     for name, resolution, mt in CONFIGS:
-        read_hz, update_hz, lo, hi = measure_rate(sensor, resolution, mt)
-        results.append((name, read_hz, update_hz))
-        print("{:<12} {:>10.1f} {:>10.1f} {:>12.1f} {:>12.1f}".format(
-            name, read_hz, update_hz, lo, hi))
+        theory = (16 if resolution == BH1750.RESOLUTION_LOW else 120) * mt / 69
+        conv_ms = measure_conversion_time(sensor, resolution, mt)
+        lo, hi, jitter = measure_noise(sensor, resolution, mt)
+        max_hz = 1000.0 / conv_ms if conv_ms else 0.0
+        results.append((name, conv_ms, max_hz, jitter))
+        print("{:<12} {:>10.1f} {:>8.1f} {:>8.1f} {:>12} {:>10.2f}".format(
+            name, conv_ms, max_hz, theory, "{}~{}".format(lo, hi), jitter))
 
     print()
-    print("주의: '읽기Hz'는 I2C 전송 속도, '갱신Hz'는 센서가 실제로 새 값을 내놓는 속도.")
-    print("      학습에 의미 있는 것은 '갱신Hz' 쪽이다. 목표는 25 Hz 이상.")
+    print("판정 기준:")
+    print("  - 변환ms가 이론값과 크게 다르면 그 설정은 완결되지 않은 값을 돌려주고 있다.")
+    print("  - 지터는 조도가 고정된 상태의 잡음. 이것이 제스처 신호보다 크면 쓸 수 없다.")
     return results
 
 
-def part2_dynamic_range(sensor, label, seconds=5, hz=25):
+def part2_dynamic_range(sensor, label, seconds=5, period_ms=SAMPLE_PERIOD_MS):
     """지정한 동작을 하는 동안의 lux 변동 폭을 측정한다."""
-    period_ms = int(1000 / hz)
-    n = seconds * hz
+    n = int(seconds * 1000 / period_ms)
 
     print()
     print("[{}] {}초간 동작하세요. 3초 뒤 시작합니다...".format(label, seconds))
@@ -128,12 +168,12 @@ def main():
 
     part1_sample_rate(sensor)
 
-    # 이후 측정은 가장 빠른 설정(저해상도 + 짧은 측정시간)으로 고정
-    sensor.configure(BH1750.MEASUREMENT_MODE_CONTINUOUSLY, BH1750.RESOLUTION_LOW, 31)
+    # 이후 측정은 Phase 0에서 확정한 설정으로 고정
+    sensor.configure(BH1750.MEASUREMENT_MODE_CONTINUOUSLY, BEST_RESOLUTION, BEST_MT)
 
     print()
     print("=" * 62)
-    print("2. 제스처별 동적 범위 (LOW mt=31, 25 Hz 샘플링)")
+    print("2. 제스처별 동적 범위 (HIGH mt=31, {} Hz 샘플링)".format(SAMPLE_HZ))
     print("=" * 62)
 
     stats = [
