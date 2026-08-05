@@ -1,0 +1,21 @@
+# 빌드 산출물
+build/
+*.uf2
+
+# Edge Impulse 내보내기
+*.zip
+ei-model-export/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 수집 데이터 (용량이 크면 커밋하지 않음)
+data/raw/
+
+# 에디터
+.vscode/
+.idea/
+*.swp
+.DS_Store
