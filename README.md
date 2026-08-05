@@ -89,9 +89,9 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 
 | 경로 | 설명 |
 |---|---|
-| `src/lib/bh1750.py` | BH1750 드라이버 (vendored, 해상도 판별 버그 수정) |
-| `src/characterize.py` | Phase 0 — 샘플레이트·동적 범위 실측 |
-| `src/ei_forwarder.py` | Phase 1 — 25 Hz CSV 시리얼 출력 (data-forwarder용) |
+| `src/lib/bh1750.py` | BH1750 드라이버 (vendored, 버그 2건 수정) |
+| `src/characterize.py` | Phase 0 — 변환 시간·잡음·동적 범위 실측 |
+| `src/ei_forwarder.py` | Phase 1 — 16.6 Hz CSV 시리얼 출력 (data-forwarder용) |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
 
 ---
