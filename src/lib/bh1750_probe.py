@@ -7,7 +7,7 @@ Phase 1의 수집 스크립트도 여기의 샘플링 설정을 그대로 참조
 """
 
 from machine import I2C, Pin
-from utime import sleep, sleep_ms, ticks_diff, ticks_ms, ticks_us
+from utime import (sleep, sleep_ms, sleep_us, ticks_diff, ticks_ms, ticks_us)
 
 from bh1750 import BH1750
 
@@ -16,12 +16,24 @@ I2C_SCL = 5
 BH1750_ADDR = 0x23
 
 # Phase 0 실측으로 확정된 설정 (docs/00-sensor-characterization.md)
-#   HIGH mt=31 → 변환 52.6 ms → 상한 19.0 Hz.  여유를 두고 60 ms 주기로 샘플링한다.
+#   HIGH mt=31 → 변환 52.6 ms → 상한 19.0 Hz.
 #   저해상도(LOW) 모드는 미완결 값을 반환하므로 쓰지 않는다.
 BEST_RESOLUTION = BH1750.RESOLUTION_HIGH
 BEST_MT = 31
-SAMPLE_PERIOD_MS = 60
-SAMPLE_HZ = 1000.0 / SAMPLE_PERIOD_MS
+
+# 정확히 16 Hz = 62500 us.
+#
+# 왜 60 ms(16.6 Hz)가 아닌가:
+#   edge-impulse-data-forwarder --frequency 16 으로 붙으면 Studio는 샘플 간격을
+#   62.5 ms로 기록한다. 장치가 60 ms로 보내면 데이터셋 라벨과 실제가 4% 어긋난다.
+#   wave/swipe는 주파수로만 구분되므로 이 오차가 그대로 스펙트럼을 민다.
+#   Phase 3에서 C 펌웨어가 16 Hz로 샘플링할 때도 학습 데이터와 어긋난다.
+#   → 장치를 데이터셋에 맞춘다. 변환 시간 대비 여유는 오히려 19%로 늘어난다.
+#
+# sleep_ms는 정수라 62.5 ms를 낼 수 없다. ticks_us / sleep_us로 맞춘다.
+SAMPLE_PERIOD_US = 62500
+SAMPLE_PERIOD_MS = SAMPLE_PERIOD_US / 1000.0
+SAMPLE_HZ = 1000000.0 / SAMPLE_PERIOD_US
 
 
 def make_sensor():
@@ -44,17 +56,19 @@ def read_raw(sensor):
     return buffer[0] << 8 | buffer[1]
 
 
-def sample(sensor, seconds, period_ms=SAMPLE_PERIOD_MS):
+def sample(sensor, seconds, period_us=SAMPLE_PERIOD_US):
     """고정 주기로 lux를 수집한다. 반환: lux 리스트"""
-    n = int(seconds * 1000 / period_ms)
+    n = int(seconds * 1000000 / period_us)
     values = []
-    next_tick = ticks_ms()
+    next_tick = ticks_us()
     for _ in range(n):
         values.append(sensor.measurement)
-        next_tick += period_ms
-        delay = ticks_diff(next_tick, ticks_ms())
+        next_tick += period_us
+        delay = ticks_diff(next_tick, ticks_us())
         if delay > 0:
-            sleep_ms(delay)
+            sleep_us(delay)
+        else:
+            next_tick = ticks_us()
     return values
 
 

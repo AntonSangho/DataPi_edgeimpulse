@@ -79,8 +79,8 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | 해상도 | H-Resolution | 저해상도는 미완결 값 반환 (아래 이슈 참고) |
 | MTreg | 31 | 데이터시트 최솟값 = 최고 속도 |
 | 변환 시간 | 52.6 ms (상한 19.0 Hz) | 실측 |
-| 샘플 주기 | **60 ms (16.6 Hz)** | 변환 시간에 14% 여유 |
-| 창 길이 | **2000 ms (33 샘플)** | 3초 지연은 제스처에 너무 느림 |
+| 샘플 주기 | **62.5 ms (16 Hz)** | Studio 기록 간격과 일치 (여유 19%) |
+| 창 길이 | **2000 ms (32 샘플)** | 3초 지연은 제스처에 너무 느림 |
 | stride | 500 ms | |
 
 ### 제스처 분리도 (배경 129.8 lx)
@@ -106,7 +106,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | `src/lib/bh1750_probe.py` | 공용 샘플링·통계 루틴 (Phase 1에서도 재사용) |
 | `src/characterize.py` | Phase 0 — 변환 시간·잡음 실측 (손동작 불필요) |
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
-| `src/ei_forwarder.py` | Phase 1 — 16.6 Hz lux 스트리머 + 페이스 메트로놈 |
+| `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 + 페이스 메트로놈 |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
 
 ---

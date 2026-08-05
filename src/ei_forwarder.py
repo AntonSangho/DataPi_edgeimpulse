@@ -1,7 +1,10 @@
 """Phase 1 - Edge Impulse data-forwarder용 조도 스트리머
 
-BH1750의 lux 값을 16.6 Hz로 USB CDC에 한 줄씩 출력한다.
+BH1750의 lux 값을 정확히 16 Hz(62.5 ms)로 USB CDC에 한 줄씩 출력한다.
 edge-impulse-data-forwarder가 이 줄을 읽어 Studio로 올린다.
+
+주기가 62.5 ms인 이유는 bh1750_probe.py의 SAMPLE_PERIOD_US 주석 참고 —
+Studio가 기록하는 간격과 장치의 실제 간격을 일치시켜야 한다.
 
 준비:
   mpremote fs mkdir :lib
@@ -40,9 +43,9 @@ GP21 NeoPixel이 BH1750 옆에 있지만, 실측 결과 흰색 최대 밝기에�
 
 from machine import PWM, Pin
 from neopixel import NeoPixel
-from utime import sleep_ms, ticks_diff, ticks_ms
+from utime import sleep_ms, sleep_us, ticks_diff, ticks_ms, ticks_us
 
-from bh1750_probe import SAMPLE_PERIOD_MS, make_sensor, use_best_config
+from bh1750_probe import SAMPLE_PERIOD_US, make_sensor, use_best_config
 
 BUTTON_PIN = 20
 NEOPIXEL_PIN = 21
@@ -124,7 +127,7 @@ def main():
 
     last_press = ticks_ms()
     was_down = False
-    next_sample = ticks_ms()
+    next_sample = ticks_us()
 
     while True:
         # --- 버튼: 메트로놈 간격 순환 (눌렀다 뗄 때 1회) ---
@@ -139,13 +142,13 @@ def main():
         # --- 샘플 1개 출력: data-forwarder가 읽는 유일한 줄 ---
         print("{:.2f}".format(sensor.measurement))
 
-        next_sample += SAMPLE_PERIOD_MS
-        delay = ticks_diff(next_sample, ticks_ms())
+        next_sample += SAMPLE_PERIOD_US
+        delay = ticks_diff(next_sample, ticks_us())
         if delay > 0:
-            sleep_ms(delay)
+            sleep_us(delay)
         else:
             # 주기를 놓쳤다 — 밀린 시각을 현재로 되돌려 계속 밀리는 것을 막는다
-            next_sample = ticks_ms()
+            next_sample = ticks_us()
 
 
 main()
