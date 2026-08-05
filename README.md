@@ -55,6 +55,8 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
+작업 규칙은 [`CLAUDE.md`](CLAUDE.md), 과정 회고는 [`docs/RETROSPECTIVE.md`](docs/RETROSPECTIVE.md).
+
 ---
 
 ## 분류 클래스
