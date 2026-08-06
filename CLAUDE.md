@@ -12,7 +12,8 @@ DataPi v0.3(Pico W)에 Edge Impulse를 적용하는 **방법을 찾는** 프로�
 |---|---|
 | BH1750 | H-Resolution, MTreg **31**, I2C0 (GP4=SDA / GP5=SCL), 0x23 |
 | 샘플 주기 | **62500 us = 정확히 16 Hz** (`SAMPLE_PERIOD_US`) |
-| 창 / stride | 2000 ms (32 샘플) / 500 ms |
+| 창 / stride | **3000 ms (48 샘플)** / 500 ms — 2026-08-06 변경 (이전 2000 ms) |
+| 클래스 | `idle` / `cover` / `wave` — **`swipe`는 disable** (삭제 아님) |
 | EI 프로젝트 | `datapi light sensor` — ID **1079757** |
 | 축 이름 | **`lux`** (Phase 3의 C fusion 디스크립터와 일치해야 함) |
 
