@@ -250,21 +250,70 @@ Studio에서 우리 모델(ID `1079757`)을 C++ library로 배포해 `ei-model/`
 창이 3000 ms / 48 샘플로 바뀌었으므로 **온디바이스 리소스도 재측정**한다
 (창 2000 ms 시절 3 ms / 1.4 KB / 14.7 KB).
 
-### 2. BH1750 센서 (`Sensors/`)
+### 2·3. BH1750 센서와 fusion 등록 — **초안 작성됨 (아직 빌드 안 함)**
 
-현재 있는 것은 ADXL345 / Arduino / DHT11 / PDM뿐이다. BH1750은 새로 쓴다.
+upstream에 있는 센서는 ADXL345 / Arduino / DHT11 / PDM뿐이라 BH1750은 새로 썼다.
 
 | 항목 | 값 |
 |---|---|
 | I2C | I2C0, GP4=SDA / GP5=SCL, 주소 `0x23` |
-| 모드 | H-Resolution, **MTreg 31** |
+| 모드 | 연속 H-Resolution, **MTreg 31** |
 | 주기 | 62500 us = 정확히 16 Hz |
 
-`src/lib/bh1750.py`에서 고친 **버그 2건을 C로 옮길 때 같이 가져가야 한다.**
-MTreg lux 환산이 반대로 되어 있던 것이 기본 설정에서는 안 드러난다.
+**본보기는 `ei_analogsensor.{h,cpp}`다.** upstream 센서 중 유일한 단일 축이라
+구조가 그대로 맞는다 (ADXL345는 3축이라 오히려 멀다).
 
-### 3. fusion 디스크립터 — 축 이름 `lux`
+이 저장소의 `firmware/`에 **upstream과 같은 경로 구조로** 두었다.
+참조 저장소(`~/projects/firmware-pi-rp2xxx`)는 건드리지 않았다.
 
-`firmware-sdk/ei_fusion.h`에 등록한다.
-Phase 1에서 축 이름 때문에 **세 번 재녹화**했다 (`docs/01` 참고).
-Studio의 축 이름과 한 글자라도 다르면 조용히 실패한다.
+| 파일 | 내용 |
+|---|---|
+| `firmware/Sensors/BH1750/BH1750.{h,cpp}` | 드라이버. `src/lib/bh1750.py`를 C로 옮긴 것 |
+| `firmware/edge-impulse/ingestion-sdk-platform/sensors/ei_bh1750sensor.{h,cpp}` | fusion 등록 + 읽기 함수 |
+
+#### 옮겨온 것들
+
+**버그 2건을 그대로 가져왔다** (`docs/00` 3절). 주석에 `FIX(1)`, `FIX(2)`로 표시했다.
+특히 MTreg 환산은 `mt=69`에서만 원본과 일치하므로, MTreg 31을 쓰는 우리
+설정에서는 안 고치면 **lux가 1/5 가까이 나온다** (130 lx → 26.3 lx).
+
+**읽기 실패 시 직전 값을 유지하는 것**도 가져왔다 (`src/ei_forwarder.py`의 판단).
+Phase 1에서 스트림이 조용히 끊겨 60초 녹화가 401/960 샘플로 잘린 채 "OK"로
+업로드된 적이 있다. 잘못된 값 하나보다 조용히 잘린 데이터가 훨씬 해롭다.
+
+**축 이름은 `"lux"`, 단위는 `"lx"`.** Studio의 축 이름과 한 글자라도 다르면
+조용히 실패한다 — 에러가 아니라 데이터가 안 붙는다. Phase 1에서 이것 때문에
+세 번 재녹화했다 (`docs/01`).
+
+**주파수 목록의 첫 값은 `16.0f`.** 데이터셋 전체가 이 주파수로 수집됐다.
+
+#### 통합에 필요한 변경 — 두 군데뿐
+
+소스 파일은 **CMake가 알아서 잡는다.** `RECURSIVE_FIND_FILE`이 `Sensors`와
+`edge-impulse/ingestion-sdk-platform/sensors`를 재귀로 훑기 때문에
+파일을 두기만 하면 빌드에 들어간다.
+
+**(1) `CMakeLists.txt`의 `INCLUDES`에 헤더 경로 추가** — `#include "BH1750.h"`가
+풀리려면 필요하다.
+
+```cmake
+    ${DRIVERS}/DHT11
+    ${DRIVERS}/ADXL345
++   ${DRIVERS}/BH1750
+    ${DRIVERS}/PDM/src/include
+```
+
+**(2) `src/main.cpp`의 `ei_init()`에 초기화 호출 추가**
+
+```cpp
+    if (ei_analog_sensor_init() == false) {
+        ei_printf("ADC sensor initialization failed\r\n");
+    }
+
++   if (ei_bh1750_sensor_init() == false) {
++       ei_printf("BH1750 initialization failed\r\n");
++   }
+```
+
+> **아직 컴파일해 보지 않았다.** upstream 구조를 읽고 쓴 초안이다.
+> 모델 배포본을 받아 `ei-model/`을 교체할 때 함께 빌드해서 확인한다.

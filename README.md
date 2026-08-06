@@ -160,7 +160,8 @@ Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.m
 | `src/characterize.py` | Phase 0 — 변환 시간·잡음 실측 (손동작 불필요) |
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
 | `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 |
-| `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
+| `firmware/Sensors/BH1750/` | Phase 3 — BH1750 C 드라이버 (`bh1750.py` 포팅, 버그 2건 포함) |
+| `firmware/edge-impulse/.../ei_bh1750sensor.*` | Phase 3 — fusion 등록 (축 이름 `lux`) |
 | `tools/uf2conv.py` | UF2 → bin 변환 (openocd로 SWD 굽기용) |
 | `docs/images/` | Studio 결과 화면 캡처 (학습 회차별) |
 | `docs/data/` | EI에서 내보낸 원본 평가 지표 JSON |
