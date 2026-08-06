@@ -325,6 +325,24 @@ Phase 1에서 스트림이 조용히 끊겨 60초 녹화가 401/960 샘플로 �
 작업 위치: `~/projects/firmware-pi-rp2xxx`의 **`datapi` 브랜치** (`146a728`).
 upstream `main`은 건드리지 않았다.
 
+> **이 브랜치는 로컬에만 있다. GitHub에 포크하지 않았다.**
+> 그 저장소의 origin은 `edgeimpulse/firmware-pi-rp2xxx`(공식)라 푸시할 곳이 없고,
+> 포크를 만드는 대신 **이 저장소의 `firmware/`를 원본으로 삼기로 했다.**
+>
+> 다른 장비에서 재현하려면:
+>
+> ```bash
+> git clone https://github.com/edgeimpulse/firmware-pi-rp2xxx.git   # 008689d 기준
+> cp -r <이 저장소>/firmware/Sensors/BH1750 firmware-pi-rp2xxx/Sensors/
+> cp <이 저장소>/firmware/edge-impulse/ingestion-sdk-platform/sensors/ei_bh1750sensor.* \
+>    firmware-pi-rp2xxx/edge-impulse/ingestion-sdk-platform/sensors/
+> # 아래 "통합에 필요한 변경" 두 곳을 적용
+> # ei-model/은 Studio에서 다시 배포받는다 (deploy version 1)
+> ```
+>
+> `ei-model/`(수십 MB, EI 생성물)은 이 저장소에 넣지 않았다.
+> Studio의 Deployment에서 언제든 같은 것을 다시 받을 수 있다.
+
 ### 모델 배포본 확인 — `INTERVAL_MS` 함정을 피했다
 
 Studio → Deployment → C++ library로 받은 zip을 풀어 **교체 전에** 값부터 봤다.
