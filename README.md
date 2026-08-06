@@ -51,7 +51,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 |---|---|---|
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
 | Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
-| Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) — 1차 학습 완료 |
+| Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) — 2차 학습 완료 (3-class) |
 | Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
@@ -102,9 +102,25 @@ Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.m
 
 ---
 
-## 진행 현황 (2026-08-05)
+## 진행 현황 (2026-08-06)
 
-**1차 학습 완료 — 검증 94.7% / 테스트 64.9%**
+**2차 학습 — `swipe`를 뺀 3-class로 테스트 88.3%** (검증 100%, 다만 71창뿐)
+
+| 클래스 | 검증 F1 | 테스트 F1 |
+|---|---|---|
+| `cover` | 1.00 | 0.89 |
+| `idle` | 1.00 | 0.84 |
+| `wave` | 1.00 | **0.92** |
+
+`swipe`는 `wave`와 **주파수로만** 갈렸고 그 차이(0.5 Hz)가 하필 FFT 해상도와
+같았습니다. 빼자 `wave` F1이 0.07 → 0.92로 올랐고 `wave`↔`cover` 혼동은 0입니다.
+남은 오분류 20/171창은 전부 `idle`과의 사이입니다.
+
+**일반화 문제가 해결된 것은 아닙니다** — 학습 세션은 여전히 1개입니다.
+
+---
+
+### 1차 학습 (2026-08-05) — 검증 94.7% / 테스트 64.9%
 
 | 클래스 | 검증 F1 | 테스트 F1 |
 |---|---|---|
@@ -120,7 +136,7 @@ Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.m
 온디바이스 성능은 **3 ms / 1.4 KB RAM / 14.7 KB Flash** — RP2040 예산의 1~3%.
 병목은 모델 크기가 아니라 **일반화**입니다.
 
-다음: 조명·손 거리를 바꾼 학습 세션 추가 수집 → 재학습.
+다음: 조명·손 거리를 바꾼 학습 세션 추가 수집 → 재학습, 창 3000 ms 시험.
 상세는 [`docs/02-model.md`](docs/02-model.md).
 
 ---
@@ -135,6 +151,8 @@ Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.m
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
 | `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
+| `docs/images/` | Studio 결과 화면 캡처 (학습 회차별) |
+| `docs/data/` | EI에서 내보낸 원본 평가 지표 JSON |
 
 ---
 
