@@ -52,7 +52,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
 | Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
 | Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) — 2차 학습 완료 (3-class) |
-| Phase 3 | C 펌웨어 온디바이스 추론 | [`docs/03-firmware.md`](docs/03-firmware.md) — 환경 구축·stock 펌웨어 확인 완료 |
+| Phase 3 | C 펌웨어 온디바이스 추론 | [`docs/03-firmware.md`](docs/03-firmware.md) — 온디바이스 추론 동작 (DSP 3 ms / 추론 1~2 ms) |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
 프로젝트 전체를 설명하는 학습 문서: [`docs/2026-08-05-explanation.html`](docs/2026-08-05-explanation.html)

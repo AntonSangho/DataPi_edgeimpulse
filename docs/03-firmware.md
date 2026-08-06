@@ -1,8 +1,8 @@
 # Phase 3 — C 펌웨어 온디바이스 추론
 
-> 상태: **0단계 완료** (2026-08-06) — 손대지 않은 EI 공식 펌웨어가 DataPi의
-> Pico에서 빌드·굽기·부팅·AT 응답까지 전부 된다.
-> 다음: 우리 모델 배포 → `ei-model/` 교체 → BH1750 센서 작성
+> 상태: **온디바이스 추론까지 돈다** (2026-08-06) — 우리 모델 + BH1750 fusion 센서로
+> DSP 3 ms / 추론 1~2 ms. **다만 손을 대지 않아도 `cover`/`idle`이 오간다 — 원인 미상.**
+> 다음: 실제 lux 실측 (`edge-impulse-daemon` → Studio Live classification)
 
 포크 대상: `~/projects/firmware-pi-rp2xxx` (`008689d`, 2026-07-30)
 
@@ -315,5 +315,106 @@ Phase 1에서 스트림이 조용히 끊겨 60초 녹화가 401/960 샘플로 �
 +   }
 ```
 
-> **아직 컴파일해 보지 않았다.** upstream 구조를 읽고 쓴 초안이다.
-> 모델 배포본을 받아 `ei-model/`을 교체할 때 함께 빌드해서 확인한다.
+> **초안 그대로 컴파일이 통과했다** (2026-08-06). BH1750 관련 경고도 없었다.
+> 통합에 필요한 변경도 예상대로 위 두 곳뿐이었다.
+
+---
+
+## 통합과 실측 (2026-08-06)
+
+작업 위치: `~/projects/firmware-pi-rp2xxx`의 **`datapi` 브랜치** (`146a728`).
+upstream `main`은 건드리지 않았다.
+
+### 모델 배포본 확인 — `INTERVAL_MS` 함정을 피했다
+
+Studio → Deployment → C++ library로 받은 zip을 풀어 **교체 전에** 값부터 봤다.
+
+| 항목 | 값 | |
+|---|---|---|
+| `EI_CLASSIFIER_PROJECT_ID` | 1079757 | ✓ |
+| `EI_CLASSIFIER_PROJECT_NAME` | `datapi light sensor` | ✓ |
+| **`EI_CLASSIFIER_INTERVAL_MS`** | **62.5** | ✓ 데모는 `16`이었다 |
+| `EI_CLASSIFIER_FREQUENCY` | 16 | ✓ |
+| `EI_CLASSIFIER_RAW_SAMPLE_COUNT` | **48** | ✓ 3000 ms × 16 Hz |
+| `EI_CLASSIFIER_LABEL_COUNT` | 3 | ✓ |
+| 라벨 | `cover`, `idle`, `wave` | ✓ |
+| `EI_CLASSIFIER_SENSOR` | `FUSION` | ✓ |
+
+`NN_INPUT_FRAME_SIZE`는 21이다 — 48 샘플이 스펙트럼 특징 21개로 줄어든다.
+
+### fusion 목록에 `Light sensor`가 뜬다
+
+센서 목록은 `AT+SENSORS`가 아니라 **`AT+CONFIG?`** 안에 있다.
+
+```
+Name: Light sensor, Max sample length: 144s,
+      Frequencies: [16.000000Hz, 12.500000Hz, 10.000000Hz, 8.000000Hz, 1.000000Hz]
+```
+
+16 Hz가 첫 값으로 들어갔다. 다른 센서와의 조합(`ADC sensor + Light sensor` 등)도
+자동으로 생성된다.
+
+### 온디바이스 성능 — 창을 늘려도 그대로다
+
+```
+AT+RUNIMPULSE
+Interval: 62.500000ms.   Frame size: 48   Sample length: 3000.000000 ms.
+Timing: DSP 3 ms, inference 1 ms, anomaly 0 ms, postprocessing 57 us
+```
+
+| 항목 | 창 2000 ms (Phase 2 추정) | 창 3000 ms (실측) |
+|---|---|---|
+| DSP | 1 ms | **3 ms** |
+| 추론 | 3 ms | **1~2 ms** |
+| 후처리 | — | 57~62 us |
+
+**창을 1.5배로 늘렸는데 합계는 여전히 5 ms 미만이다.** 목표 100 ms의 5%.
+Phase 2에서 "병목은 모델 크기가 아니다"라고 한 것이 온디바이스에서도 확인됐다.
+
+### ⚠️ 미해결 — 손을 대지 않아도 `cover`와 `idle`이 오간다
+
+정지 상태에서 5회 연속:
+
+| 회차 | cover | idle | wave |
+|---|---:|---:|---:|
+| 1 | 0.664 | 0.332 | 0.004 |
+| 2 | 0.008 | **0.992** | 0.000 |
+| 3 | **0.996** | 0.000 | 0.000 |
+| 4 | 0.500 | 0.500 | 0.000 |
+| 5 | 0.027 | **0.973** | 0.000 |
+
+`wave`는 한 번도 오검출되지 않았다. **흔들리는 것은 `cover`↔`idle`뿐**이고,
+이는 Studio 테스트에서 남은 유일한 오분류 쌍과 같다 (8/165창).
+다만 **여기서의 흔들림은 그 비율보다 훨씬 크다.**
+
+`AT+RUNIMPULSEDEBUG=0`으로 특징값을 봤지만 전부 정규화 후 값이라
+(-0.7 ~ 0.2 범위) **실제 lux를 알 수 없다.** `Normalize features`를 켠 결과다.
+
+**원인은 아직 모른다. 추정하지 않는다.** 떠오른 후보는 셋이고 전부 가설이다:
+
+1. 지금 조명이 학습(배경 145 lux)·테스트(90 lux) 어느 쪽과도 다르다.
+   사용자 확인: **위치는 그대로지만 "날에 따라 환경 조명이 다를 수 있다".**
+   그렇다면 이것은 버그가 아니라 **학습 세션이 1개뿐인 문제가 실제 동작에서
+   드러난 것**이다 — Phase 2에서 미해결로 남긴 바로 그 문제다.
+2. C 드라이버의 lux 값이 MicroPython 쪽과 다르다 (포팅 오류).
+3. `Normalize features`가 `cover`/`idle`을 가르던 절대 레벨을 약화시켰다.
+   Studio 2-A에서 이 쌍의 오분류가 12 → 14창으로 **늘었던 것**과 방향이 맞는다.
+
+센서가 가려지지는 않았음을 사용자가 확인했다.
+
+**다음 단계는 실측이다.** `edge-impulse-daemon`으로 Studio에 붙이면 Live
+classification에서 실제 lux 파형과 분류를 동시에 볼 수 있다. 코드 변경이 없고,
+1·2번 가설을 한 번에 가른다 — MicroPython 수집 때의 파형과 비교하면 된다.
+
+### 굽고 나서 바로 AT를 보내면 응답이 없다
+
+굽기 직후 `AT+INFO`가 빈 응답이었다. 재열거가 끝나기 전이었을 뿐이고,
+**몇 초 기다리면 정상이다.**
+
+이때 SWD로 halt해서 core0가 FreeRTOS idle task에 있는 것을 보고
+"AT 서버가 안 올라왔다"고 판단했는데 **틀렸다.** FreeRTOS에서 idle task는
+정상 상태다. I2C0 레지스터를 읽어보니 `TAR=0x23`(우리 코드가 돌았다는 증거),
+버스 idle, `TX_ABRT` 없음 — I2C는 처음부터 멀쩡했다.
+
+> 굽기 직후에는 몇 초 기다린다. 그 전의 무응답으로 원인을 찾기 시작하면
+> 멀쩡한 곳을 뒤지게 된다.
