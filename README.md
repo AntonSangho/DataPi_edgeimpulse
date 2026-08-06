@@ -52,7 +52,7 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | Phase 0 | 저장소 부트스트랩 + 센서 특성 파악 | [`docs/00-sensor-characterization.md`](docs/00-sensor-characterization.md) |
 | Phase 1 | data-forwarder로 데이터 수집 | [`docs/01-data-collection.md`](docs/01-data-collection.md) |
 | Phase 2 | Impulse 설계·학습 | [`docs/02-model.md`](docs/02-model.md) — 2차 학습 완료 (3-class) |
-| Phase 3 | C 펌웨어 온디바이스 추론 | `docs/03-firmware.md` |
+| Phase 3 | C 펌웨어 온디바이스 추론 | [`docs/03-firmware.md`](docs/03-firmware.md) — 환경 구축·stock 펌웨어 확인 완료 |
 | Phase 4 | 평가와 회고 → **최종 절차서** | `docs/DATAPI_EI_GUIDE.md` |
 
 프로젝트 전체를 설명하는 학습 문서: [`docs/2026-08-05-explanation.html`](docs/2026-08-05-explanation.html)
@@ -83,8 +83,13 @@ DataPi v0.3(Raspberry Pi Pico W)에 **Edge Impulse를 어떻게 적용할지 그
 | MTreg | 31 | 데이터시트 최솟값 = 최고 속도 |
 | 변환 시간 | 52.6 ms (상한 19.0 Hz) | 실측 |
 | 샘플 주기 | **62.5 ms (16 Hz)** | Studio 기록 간격과 일치 (여유 19%) |
-| 창 길이 | **2000 ms (32 샘플)** | 3초 지연은 제스처에 너무 느림 |
+| 창 길이 | ~~2000 ms (32 샘플)~~ → **3000 ms (48 샘플)** | 아래 정정 |
 | stride | 500 ms | |
+
+> **창 길이 정정 (2026-08-06).** Phase 0에서 "3초 지연은 제스처에 너무 느림"이라며
+> 2000 ms로 정했으나, 실제로 3000 ms가 테스트 정확도를 91.8% → 95.2%로 올렸습니다.
+> 지연 1초를 비용으로 받아들였습니다. **Phase 0의 판단 근거였던 "빈 창" 설명은
+> 별개로 반증됐습니다** — [`docs/02-model.md`](docs/02-model.md) A/B 절 참고.
 
 ### 제스처 분리도 (배경 129.8 lx)
 
@@ -156,6 +161,7 @@ Phase 2의 혼동행렬이 답합니다 — [`docs/02-model.md`](docs/02-model.m
 | `src/gesture_range.py` | Phase 0 — 제스처별 동적 범위 실측 (손동작 필요) |
 | `src/ei_forwarder.py` | Phase 1 — 16 Hz lux 스트리머 |
 | `firmware/` | Phase 3 — C / pico-sdk 펌웨어 |
+| `tools/uf2conv.py` | UF2 → bin 변환 (openocd로 SWD 굽기용) |
 | `docs/images/` | Studio 결과 화면 캡처 (학습 회차별) |
 | `docs/data/` | EI에서 내보낸 원본 평가 지표 JSON |
 
